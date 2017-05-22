@@ -1,14 +1,13 @@
-package checkers;
+
 
 import javafx.scene.shape.Rectangle;
 import javafx.scene.paint.*;
 
 public class Field extends Rectangle {
-	/*rozszerzam kwadrat*/
 
     public   double field_size = 50;
 	private int x, y; // koordynaty planszy
-	public Checker checker=null; // pionek ktory nalezy do pola
+	public Checker checker=null;
 	
 
 	public Field(int color, int x, int y) { // if 0-white , if 1-green
@@ -17,26 +16,25 @@ public class Field extends Rectangle {
 		setWidth(field_size);
 		setHeight(field_size);
 
-		relocate(y * field_size, x * field_size); //przesuwam pole w odpowiednie miejsce
+		relocate(y * field_size, x * field_size);
 
 		if (color == 0)
-			setFill(Color.valueOf("#feb")); //ustawiam kolr
+			setFill(Color.valueOf("#feb"));
 		else
-			setFill(Color.valueOf("#582"));	
-		
+			setFill(Color.valueOf("#582"));		
 		setOnMousePressed(e->{
-			/*funkcja która na klikniêcie pokazuje pionek danego pola. Mo¿na sobie sprawdzaæ czy checker 
-			 * jest null czy nie*/
 			System.out.println(this.checker);
 		});
 		this.x = x;
-		this.y = y;///
+		this.y = y;
 	}
 
 	public void setChecker(Checker checker){
 		this.checker=checker;
 	}
 	
-	
+	public Checker getChecker() {
+        return this.checker;
+	}
 
 }
