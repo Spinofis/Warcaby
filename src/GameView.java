@@ -1,26 +1,27 @@
-
-import javafx.geometry.Insets;
-
-import javafx.application.Application;
 import javafx.scene.Group;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-
-public class GameView extends App  {
+/**
+ * Klasa tworzy planszê i umieszcza na niej pionki
+ */
+public class GameView extends App {
 
 	private Group fieldGroup = new Group();
-	private Group checkerGroup = new Group();
+	static Group checkerGroup = new Group();
 	private Field field = null;
 	private static Field[][] fieldTab = new Field[8][8]; // tablica pól planszy
-	private static double field_size=50;
-	private static double radius=15;
-	
+	private static double field_size = 50;
+	private static double radius = 15;
+	private boolean isServer;
 
+	/**
+	 * Konstruktor klasy, ustala czy dany gracz jest serwerem czy klientem
+	 */
+	public GameView(boolean isServer) {
+		this.isServer = isServer;
+	}
+	/**
+	 * Kontener tworz¹cy now¹ planszê oraz ustawia na niej pionki w zele¿noœci od koloru 
+	 */
 	public Pane createBoard() {
 		Pane pane = new Pane();
 		pane.setPrefSize(400, 400);
@@ -31,21 +32,25 @@ public class GameView extends App  {
 				fieldTab[i][j] = field;
 				fieldGroup.getChildren().add(field);
 			}
- 
-		int checkerNumber;
-		if(isServer)
-			checkerNumber=0;
-		else
-			checkerNumber=25;
+
+		CheckerType checkerType;
 		for (int i = 0; i < 8; i++)
 			for (int j = 0; j < 8; j++) {
 
 				if ((i % 2 == 1 && j % 2 == 0 && i != 3 && i != 4) || (i % 2 == 0 && j % 2 == 1 && i != 3 && i != 4)) {
-					if(isServer)
-						checkerNumber++;
-					else
-						checkerNumber--;
-					Checker checker = new Checker(checkerNumber, i, j,isServer);
+					if (isServer) {
+						if (i < 3)
+							checkerType = CheckerType.RED;
+						else
+							checkerType = CheckerType.WHITE;
+					} else {
+						if (i > 4)
+							checkerType = CheckerType.RED;
+						else
+							checkerType = CheckerType.WHITE;
+
+					}
+					Checker checker = new Checker(checkerType, i, j, isServer);
 					fieldTab[i][j].setChecker(checker);
 					checkerGroup.getChildren().add(checker);
 
@@ -55,13 +60,38 @@ public class GameView extends App  {
 		return pane;
 	}
 
-	public static void changeChecker(int oldX, int oldY,int newX, int newY,boolean isRelocated) {
-		Checker checker=fieldTab[oldX][oldY].getChecker();
+	/**
+	 * Metoda s³u¿¹ca do przesuwania pionków po planszy
+	 */
+	public static void changeChecker(int oldX, int oldY, int newX, int newY, boolean isRelocated) {
+		Checker checker = fieldTab[oldX][oldY].getChecker();
 		fieldTab[oldX][oldY].setChecker(null);
 		fieldTab[newX][newY].setChecker(checker);
-		if(isRelocated)
-          checker.relocate(field_size*newY+(field_size/2-radius),field_size*newX+(field_size/2-radius));
+		if (isRelocated) {
+			checker.relocate(field_size * newY + (field_size / 2 - radius),
+					field_size * newX + (field_size / 2 - radius));
+		}
 	}
-
 	
+	/**
+	 * Metoda, która usuwa pionek z danego pola i ustawia je na puste
+	 */
+	static void removeChecker(int newX, int newY) {
+		checkerGroup.getChildren().remove(fieldTab[newX][newY].getChecker());
+		fieldTab[newX][newY].setChecker(null);
+	}
+	
+	/**
+	 * Metoda, która zmienia pionek na damkê po wejœciu na ostatnie pole
+	 */
+	static void setKing(int newX, int newY) {
+		Checker checker = fieldTab[newX][newY].getChecker();
+		checker.setKing();
+	}
+	/**
+	 * Metoda zwracaj¹ca wskazane pole
+	 */
+	public static Field getField(int x, int y) {
+		return fieldTab[x][y];
+	}
 }

@@ -1,49 +1,45 @@
 
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.StrokeType;
-
-import java.io.IOException;
-import javafx.application.Platform;
-import javafx.scene.Node;
-import javafx.scene.layout.StackPane;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
+
+/**
+ * Klasa tworz¹ca pionek, definicja jego wygl¹du
+ */
 
 public class Checker extends Circle {
 
 	private double radius = 15;
 	private double field_size = 50;
-	private double checkerNumber;
-	int oldX, oldY, newX, newY;
+	private int oldX, oldY, newX, newY;
+	private CheckerType checkerType;
+	private boolean isKing = false, isServer;
 
-	/*
-	 * jeœli kolor mniejszy od 13 to czerwony ,pionek jeœli nie to bia³y TAK JEST W SERWERZE
-	 * w cliencie jest na odwórt 
-	 * Po tych numerach mo¿na rozró¿niæ kolory
-	 * chcia³em zrobiæ ENUMA ale mi coœ nie wychodzi³ :(
+	/**
+	 * Konstruktor przypisuj¹cy w³aœciciela pionka, jego pozycjê oraz kolor
+	 * Ni¿ej zdefiniowane s¹ metody przemieszczania pionka oraz dzia³anie 
+	 * przycisków myszy w konfrontacji z pionkiem
 	 */
-	public Checker(int number, int x, int y, boolean isServer) {
+	public Checker(CheckerType checkerType, int x, int y, boolean isServer) {
 
-		this.checkerNumber = number;
+		this.checkerType = checkerType;
+		this.isServer = isServer;
 
+		if (checkerType == CheckerType.RED) {
+			setFill(Color.RED);
+
+		} else {
+			setFill(Color.WHITE);
+		}
 		setRadius(radius);
 		setStrokeType(StrokeType.OUTSIDE);
 		setStroke(Color.BLACK);
 
 		relocate(field_size * y + (field_size / 2) - radius, field_size * x + (field_size / 2) - radius);
 
-		if (isServer) {
-			if (number < 13)
-				setFill(Color.RED);
-			else
-				setFill(Color.WHITE);
-		} else {
-			if (number >= 13)
-				setFill(Color.WHITE);
-			else
-				setFill(Color.RED);
-		}
-
-		if (number > 13 && isServer) {
+		if (this.checkerType == CheckerType.WHITE && isServer) { // jeœli bia³y
 			setOnMousePressed(e -> {
 				oldY = (int) e.getSceneX() / (int) field_size;
 				oldX = (int) e.getSceneY() / (int) field_size;
@@ -59,14 +55,20 @@ public class Checker extends Circle {
 			setOnMouseReleased(e -> {
 				newX = (int) ((int) e.getSceneY() / field_size);
 				newY = (int) e.getSceneX() / (int) field_size;
-
-				GameView.changeChecker(oldX, oldY, newX, newY, false);
-
-				App.connection.send(oldX, oldY, newX, newY);
+				if (!isKing)
+					tryMove();
+				else
+					tryMoveKing();
+				if (newX == 0 && newY%2==1 && !isKing) {
+					this.isKing = true;
+					Image img = new Image("/korona.jpg");
+					setFill(new ImagePattern(img));
+				}
 			});
 		}
 
-		if (number < 13 && !isServer) {
+		if (this.checkerType == CheckerType.RED && !isServer) { //// jeœli
+																//// czerwony
 			setOnMousePressed(e -> {
 				oldY = (int) e.getSceneX() / (int) field_size;
 				oldX = (int) e.getSceneY() / (int) field_size;
@@ -82,10 +84,86 @@ public class Checker extends Circle {
 			setOnMouseReleased(e -> {
 				newX = (int) ((int) e.getSceneY() / field_size);
 				newY = (int) e.getSceneX() / (int) field_size;
-
-				GameView.changeChecker(oldX, oldY, newX, newY, false);
-				App.connection.send(oldX, oldY, newX, newY);
+				if (!isKing)
+					tryMove();
+				else
+					tryMoveKing();
+				if (newX == 0 && newY%2==1 && !isKing) {
+					this.isKing = true;
+					Image img = new Image("/korona2.jpg");
+					setFill(new ImagePattern(img));
+				}
 			});
 		}
 	}
+	
+	/**
+	 * Utawia flagê "króla" - pionek staje siê "damk¹"
+	 * Ustawiany jest obraz na pionku w zale¿noœci od koloru pionka
+	 */
+	public void setKing() {
+		this.isKing = true;
+		if (isServer) {
+			Image img = new Image("/korona2.jpg");
+			setFill(new ImagePattern(img));
+		} else {
+			Image img = new Image("/korona.jpg");
+			setFill(new ImagePattern(img));
+		}
+	}
+	/**
+	 * Funkcja opowiedzialna za przesuniêcie pionka w miejsce w zale¿noœci od tego jaki
+	 * ruch gracz wykona³ i czy jest to mo¿liwe
+	 */
+	private void tryMove() {
+		if (Game.MoveResult(oldX, oldY, newX, newY, this.checkerType) == MoveType.NORMAL) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			// GameView.removeChecker(newX, newY);
+			App.connection.send(oldX, oldY, newX, newY, "NORMAL");
+		} else if (Game.MoveResult(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL1) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			GameView.removeChecker(newX + 1, newY - 1);
+			App.connection.send(oldX, oldY, newX, newY, "KILL1");
+		} else if (Game.MoveResult(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL2) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			GameView.removeChecker(newX + 1, newY + 1);
+			App.connection.send(oldX, oldY, newX, newY, "KILL2");
+		} else if (Game.MoveResult(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL3) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			GameView.removeChecker(newX - 1, newY + 1);
+			App.connection.send(oldX, oldY, newX, newY, "KILL3");
+		} else if (Game.MoveResult(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL4) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			GameView.removeChecker(newX - 1, newY - 1);
+			App.connection.send(oldX, oldY, newX, newY, "KILL4");
+		} else
+			relocate(field_size * oldY + (field_size / 2 - radius), field_size * oldX + (field_size / 2 - radius));
+	}
+	
+	/**
+	 * Funkcja opowiedzialna za przesuniêcie pionka "damki" w miejsce w zale¿noœci od tego jaki
+	 * ruch gracz wykona³ i czy jest to mo¿liwe
+	 */
+	private void tryMoveKing() {
+		if (Game.moveKing(oldX, oldY, newX, newY, this.checkerType) == MoveType.NORMAL) {
+			GameView.changeChecker(oldX, oldY, newX, newY, false);
+			if (Game.captureKing(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL1) {
+				GameView.removeChecker(newX + 1, newY - 1);
+				App.connection.send(oldX, oldY, newX, newY, "KILL1");
+			} else if (Game.captureKing(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL2) {
+				GameView.removeChecker(newX + 1, newY + 1);
+				App.connection.send(oldX, oldY, newX, newY, "KILL2");
+			} else if (Game.captureKing(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL3) {
+				GameView.removeChecker(newX - 1, newY + 1);
+				App.connection.send(oldX, oldY, newX, newY, "KILL3");
+			} else if (Game.captureKing(oldX, oldY, newX, newY, this.checkerType) == MoveType.KILL4) {
+				GameView.removeChecker(newX - 1, newY - 1);
+				App.connection.send(oldX, oldY, newX, newY, "KILL4");
+			} else {
+				App.connection.send(oldX, oldY, newX, newY, "NORMAL");
+			}
+		} else
+			relocate(field_size * oldY + (field_size / 2 - radius), field_size * oldX + (field_size / 2 - radius));
+	}
+
 }
